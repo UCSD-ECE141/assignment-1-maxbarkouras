@@ -1,0 +1,87 @@
+name: Autograding Tests
+'on':
+- push
+- repository_dispatch
+permissions:
+  checks: write
+  actions: read
+  contents: read
+jobs:
+  run-autograding-tests:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-classroom[bot]'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: Compile
+      id: compile
+      uses: classroom-resources/autograding-command-grader@v1
+      with:
+        test-name: Compile
+        setup-command: ''
+        command: cmake -B Builds; make -C Builds --silent
+        timeout: 1
+        max-score: 0
+    - name: Questions
+      id: questions
+      uses: classroom-resources/autograding-io-grader@v1
+      with:
+        test-name: Questions
+        setup-command: ''
+        command: cat Questions.md
+        input: ''
+        expected-output: "^((?!\\[ADD ANSWER HERE\\]).)*"
+        comparison-method: regex
+        timeout: 1
+        max-score: 10
+    - name: Basic
+      id: basic
+      uses: classroom-resources/autograding-command-grader@v1
+      with:
+        test-name: Basic
+        setup-command: cmake -B Builds; make -C Builds --silent
+        command: 'python ./testing/test.py "./Builds/WI25-Assignment1" "Basic Tests
+          \(30%\): PASSED"'
+        timeout: 1
+        max-score: 30
+    - name: Stress
+      id: stress
+      uses: classroom-resources/autograding-command-grader@v1
+      with:
+        test-name: Stress
+        setup-command: cmake -B Builds; make -C Builds --silent
+        command: 'python ./testing/test.py "./Builds/WI25-Assignment1" "Stress Tests
+          \(40%\): PASSED"'
+        timeout: 1
+        max-score: 40
+    - name: Edge Case Test
+      id: edge-case-test
+      uses: classroom-resources/autograding-command-grader@v1
+      with:
+        test-name: Edge Case Test
+        setup-command: cmake -B Builds; make -C Builds --silent
+        command: 'python ./testing/test.py "./Builds/WI25-Assignment1" "Edge Cases
+          \(10%\): PASSED"'
+        timeout: 1
+        max-score: 10
+    - name: Memory
+      id: memory
+      uses: classroom-resources/autograding-command-grader@v1
+      with:
+        test-name: Memory
+        setup-command: sudo apt install valgrind -y
+        command: python ./testing/test.py "valgrind ./Builds/WI25-Assignment1" "All
+          heap blocks were freed -- no leaks are possible"
+        timeout: 1
+        max-score: 10
+    - name: Autograding Reporter
+      uses: classroom-resources/autograding-grading-reporter@v1
+      env:
+        COMPILE_RESULTS: "${{steps.compile.outputs.result}}"
+        QUESTIONS_RESULTS: "${{steps.questions.outputs.result}}"
+        BASIC_RESULTS: "${{steps.basic.outputs.result}}"
+        STRESS_RESULTS: "${{steps.stress.outputs.result}}"
+        EDGE-CASE-TEST_RESULTS: "${{steps.edge-case-test.outputs.result}}"
+        MEMORY_RESULTS: "${{steps.memory.outputs.result}}"
+      with:
+        runners: compile,questions,basic,stress,edge-case-test,memory
